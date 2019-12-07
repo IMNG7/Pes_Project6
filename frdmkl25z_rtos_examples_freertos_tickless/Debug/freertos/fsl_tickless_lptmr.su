@@ -1,0 +1,9 @@
+core_cm0plus.h:745:22:NVIC_EnableIRQ	16	static
+fsl_lptmr.h:266:20:LPTMR_ClearStatusFlags	16	static
+fsl_lptmr.h:291:20:LPTMR_SetTimerPeriod	16	static
+fsl_lptmr.h:309:24:LPTMR_GetCurrentTimerCount	16	static
+fsl_lptmr.h:335:20:LPTMR_StartTimer	24	static
+fsl_lptmr.h:352:20:LPTMR_StopTimer	24	static
+fsl_tickless_lptmr.c:123:7:vPortLptmrIsr	8	static
+fsl_tickless_lptmr.c:129:7:vPortSuppressTicksAndSleep	32	static
+fsl_tickless_lptmr.c:247:6:prvSetupTimerInterrupt	8	static
