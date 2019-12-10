@@ -62,7 +62,7 @@
 #define BOARD_SW_IRQ BOARD_SW2_IRQ
 #define BOARD_SW_IRQ_HANDLER BOARD_SW2_IRQ_HANDLER
 #define BOARD_SW_NAME BOARD_SW2_NAME
-
+#define MAX_LOG_LENGTH 20
 /* @brief FreeRTOS tickless timer configuration. */
 #define BOARD_LPTMR_IRQ_HANDLER LPTMR0_IRQHandler /*!< Timer IRQ handler. */
 #define TICKLESS_LPTMR_BASE_PTR LPTMR0            /*!< Tickless timer base address. */
@@ -110,65 +110,48 @@ uint16_t * buffer;
 uint8_t count=0;
 dma_handle_t g_DMA_Handle;
 dma_transfer_config_t transferConfig;
+uint32_t counter = 0;
+/* Data log queue handle */
+static QueueHandle_t log_queue = NULL;
+
+//Semaphore for the LED resource
+SemaphoreHandle_t xSemaphore_LED = NULL;
 const TickType_t xDelay1ms = pdMS_TO_TICKS( 1 );
 volatile bool g_Transfer_Done = false;
 volatile uint8_t flag=0;
 uint16_t ADC_Buffer[51];
 uint16_t DSP_Buffer[51],Max,Min;
+char logg[MAX_LOG_LENGTH + 1];
 double mean,StdDev;
-static const int dacValue[SINUS_LENGTH] = {
-		2631,
-		2780,
-		2929,
-		3077,
-		3202,
-		3326,
-		3437,
-		3524,
-		3599,
-		3661,
-		3710,
-		3712,
-		3713,
-		3710,
-		3661,
-		3599,
-		3524,
-		3437,
-		3326,
-		3202,
-		3077,
-		2929,
-		2780,
-		2631,
-		2482,
-		2321,
-		2172,
-		2023,
-		1874,
-		1750,
-		1626,
-		1526,
-		1427,
-		1353,
-		1291,
-		1253,
-		1241,
-		1240,
-		1241,
-		1253,
-		1291,
-		1353,
-		1427,
-		1526,
-		1626,
-		1750,
-		1874,
-		2023,
-		2172,
-		2321,
-		2482,
-};
+static const int dacValue[SINUS_LENGTH];
+static void log_task()
+{
+
+    char log_temp[MAX_LOG_LENGTH + 1];
+    while (counter--)
+    {
+        xQueueReceive(log_queue, log_temp, portMAX_DELAY);
+        PRINTF("Log %d: %s\r\n", counter, log_temp);
+      //  counter++;
+    }
+}
+void ConvertTime(double ticks)
+{	double mil;
+	uint8_t S=0,M=0;
+	mil=ticks;
+	while(mil>1000)
+	{
+		mil=mil-1000;
+		S++;
+	}
+	while(S>60)
+	{
+		S=S-60;
+		M++;
+	}
+		PRINTF("\n\r%d:%d.%d",M,S,mil);
+		PRINTF("\n\r%d",ticks);
+}
 void ADCInit()
 {
 
@@ -237,6 +220,17 @@ void DMA_Callback(dma_handle_t *handle, void *param)
 {
     g_Transfer_Done = true;
 }
+//Queue init for the logging functionality
+void queue_init(uint32_t queue_length, uint32_t max_log_length)
+{
+    log_queue = xQueueCreate(queue_length, max_log_length);
+    //xTaskCreate(log_task, "log_task", configMINIMAL_STACK_SIZE + 166, NULL, tskIDLE_PRIORITY + 1, NULL);
+}
+
+void log_add(char *log)
+{
+    xQueueSend(log_queue, logg, 0);
+}
 
 //void DMA_func()
 //{
@@ -267,8 +261,57 @@ int main(void)
     };
 #endif
 
+    //Initializing the Queue
+    queue_init(10, MAX_LOG_LENGTH);
+    vSemaphoreCreateBinary(xSemaphore_LED);
+       	 if (xSemaphore_LED == NULL)
+       	 {
+       	    PRINTF("xSemaphore_producer creation failed.\r\n");
+       	    vTaskSuspend(NULL);
+       	 }
+       	for(uint8_t index = 0;index<50;index++)
+       	   {
+       		   dacValue[index] = ( ( ( sin(index * (6.28/50)))+2)*4096/3.3 );
+       		   PRINTF("SINE = %d\n\r",dacValue[index]);
+       	   }
     LED_GREEN_INIT(1);
     LED_BLUE_INIT(1);
+    xSemaphoreGive(xSemaphore_LED);
+            uint8_t status = uxSemaphoreGetCount(xSemaphore_LED);
+            if(status)
+            {
+            	LED_GREEN_ON();
+            	//xSemaphoreGive(xSemaphore_LED);
+            	xSemaphoreTake(xSemaphore_LED, 0);
+            	sprintf(logg, "LED status: %d", 1);
+            	log_add(logg);
+            	counter++;
+            }
+            else
+            {
+            	LED_GREEN_OFF();
+            	xSemaphoreGive(xSemaphore_LED);
+            	sprintf(logg, "LED status: %d", 0);
+            	log_add(logg);
+            	counter++;
+            }
+            status = uxSemaphoreGetCount(xSemaphore_LED);
+            if(!status)
+            {
+            	LED_GREEN_OFF();
+            	xSemaphoreGive(xSemaphore_LED);
+            	sprintf(logg, "LED status: %d", 0);
+            	log_add(logg);
+            	counter++;
+            }
+            else
+            {
+            	LED_GREEN_ON();
+            	sprintf(logg, "LED status: %d", 1);
+            	log_add(logg);
+            	counter++;
+            }
+            log_task();
     ADCInit();
     DACInit();
     CircularBuffInit();
@@ -308,7 +351,8 @@ int main(void)
 }
 void DMA0_IRQHandler(void)
 {	PRINTF("\n\r DMA Done");
-	xTaskCreate(DSP_Task, "DSP_Task", configMINIMAL_STACK_SIZE + 50, NULL, tickless_task_PRIORITY-1, NULL);
+	ConvertTime(xTaskGetTickCount());
+	xTaskCreate(DSP_Task, "DSP_Task", configMINIMAL_STACK_SIZE-20 , NULL, tickless_task_PRIORITY-1, NULL);
 	DisableIRQ(DMA0_IRQn);
 }
 /* Tickless Task */
@@ -318,6 +362,7 @@ static void DAC_TRANSFER_task(void *pvParameters)
     {
         i++;
         LED_GREEN_TOGGLE();
+
         DAC_SetBufferValue(DEMO_DAC_BASEADDR, 0U, dacValue[i]);
         PRINTF("\n\rDAC Value:%d", dacValue[i]);
         if(i==SINUS_LENGTH)
@@ -343,9 +388,11 @@ static void ADC_TRANSFER_task(void *pvParameters)
         uint16_t* Add=cbuf_handle->buffer;
         if(i==0)
         {	count++;
+
         	PRINTF("\n\r INSIDE DMA");
         	DMA_Start = xTaskGetTickCount();
-        		DMA_Stop = DMA_Start + (100*xDelay1ms);
+        	ConvertTime(DMA_Start);
+        	DMA_Stop = DMA_Start + (500*xDelay1ms);
         		while(DMA_Start != DMA_Stop)
         		{
         			DMA_Start = xTaskGetTickCount();
@@ -420,7 +467,7 @@ static void DSP_Task(void *pvParameters)
 			sumVar+=pow((DSP_Buffer[j]-mean),2);
 		}
 		Var=sumVar/50;
-		StdDev=Var;
+		StdDev=sqrt(Var);
 		PRINTF("\n\rMAX=%d",Max);
 		PRINTF("\n\rMIN=%d",Min);
 		PRINTF("\n\rMEAN=%f",mean);
