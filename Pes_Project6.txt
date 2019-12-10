@@ -1,0 +1,43 @@
+*Project 6
+*Readme File:
+*************************************************************************************
+*PES PROJECT 6
+*Developed By: Nitik Satish Gupta and Rakesh Kumar
+*PES Project 6 is aimed to work upon the implementation of ADC,DAC,DMA,FreeRTOS,
+*************************************************************************************
+Repo Contents
+*************************************************************************************
+*PES_Project6_Part1(folder) -> The project files contain all the files and folder that are being used in the project Part 1 for implementation.
+*PES_Project6_Part2(folder) -> The project files contain all the files and folder that are being used in the project Part 2 for implementation.
+*Pes_Project6.pdf-> Contains all the .c files program for plagiarism test.
+*Pes_Project6_Oscilloscope.pdf-> Contains the screenshots of the logic analyzer output for the I2C.
+*Pes_Project6.md-> The Readme file for the instructions.
+*************************************************************************************
+Interesting Observations 
+*************************************************************************************
+1. Stack and Heap size had to be increased for the proper execution of the Program Tasks.
+2. Need to provide a delay for the Proper Implementation.
+3. There was a small difference between the values given on DAC and Values obtained on ADC.
+4. There are two Semaphores API, one of them Crashed and the other one worked.
+5. While performing the DMA, the sizes we tried to pass were insuffient, so we directly use the sizeof(uint16_t)
+6. We need to increase the Stack and Heap size for the Queue implementation also.
+7. Systick is being used by FreeRTOS, so instead of using a seperate timer, we directly used the Systick and got the ticks.
+*************************************************************************************
+Notes:
+*************************************************************************************
+* The program is compiled and executed using the MCUXpresso v11.0.1 IDE.
+* There are 2 modes of operations: 1. Debug Mode
+				   2. Normal Mode
+* These can be executed using by selcting the different mode in the build option of the IDE.
+* Each mode are operating according to the problem statement given in the project file.
+* For display, Quickstart Panel->Miscellaneous->Quick Settings->SDK Debug Console-> UART Console. 
+* For Application and the Echo mode, change the # define to Application mode or echo mode To check require functionality.
+* By default polling mode is selcted, in the starting, we are giving the user to choose between the Interrupt mode and the Polling mode.
+* FOr each mode, process might be same, but execution might be different, which can be seen in the timing of the process.
+* For references different resources were used. Some of them include:
+* Most Of the reference were taken from the SDK examples of the KL25Z.
+*For UC Unit : https://mcuoneclipse.com/2018/08/26/tutorial-%CE%BCcunit-a-unit-test-framework-for-microcontrollers/
+* 
+*For FreeRTOS: https://freertos.org/
+*
+*Special thanks to: Bruce Montgomery, Abhijeet Shrivastava.
